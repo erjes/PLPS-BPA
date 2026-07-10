@@ -3,63 +3,7 @@
 @section('title', 'Konfirmasi Import - PLPS')
 
 @section('styles')
-<style>
-    .confirm-card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;max-width:900px;margin:0 auto}
-
-    /* Header */
-    .confirm-header{background:linear-gradient(135deg,#f5f3ff,#ede9fe);padding:28px 32px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #e2e8f0}
-    .confirm-header-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7B1113,#A41E1E);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-    .confirm-header h2{font-size:22px;font-weight:800;color:#1e293b;margin-bottom:2px}
-    .confirm-header p{font-size:13px;color:#64748b}
-
-    /* Body */
-    .confirm-body{padding:32px}
-
-    /* Stats */
-    .confirm-stats{background:#f8fafc;border-radius:12px;padding:32px;text-align:center;margin-bottom:28px;border:1.5px solid #e2e8f0}
-    .confirm-check{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 12px}
-    .confirm-count{font-size:40px;font-weight:800;color:#1e293b;line-height:1}
-    .confirm-label{font-size:14px;color:#64748b;margin-top:6px}
-
-    /* Detail Cards */
-    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0}
-    @media(max-width:600px){.detail-grid{grid-template-columns:1fr}}
-    .detail-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;gap:14px}
-    .detail-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .detail-card h4{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px}
-    .detail-card p{font-size:12px;color:#64748b;line-height:1.6}
-
-    /* Footer */
-    .confirm-footer{padding:20px 32px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:12px;background:#f9fafb}
-
-    /* ── Preview Table ── */
-    .preview-section{margin-top:32px}
-    .preview-section-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-    .preview-section-header h3{font-size:17px;font-weight:700;color:#1e293b;margin:0}
-    .preview-section-header .badge-count{background:#fef2f2;color:#7B1113;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px}
-    .preview-notice{display:flex;align-items:center;gap:8px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 16px;font-size:12.5px;color:#92400e;margin-bottom:14px}
-    .preview-notice i{font-size:14px;color:#d97706;flex-shrink:0}
-
-    .preview-wrap{overflow-x:auto;border-radius:12px;border:1.5px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-    .preview-table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
-    .preview-table thead{position:sticky;top:0;z-index:1}
-    .preview-table thead tr{background:linear-gradient(135deg,#1e293b,#334155)}
-    .preview-table th{padding:11px 14px;text-align:left;font-weight:600;color:#f1f5f9;border-right:1px solid rgba(255,255,255,.08);font-size:12px;letter-spacing:.3px}
-    .preview-table th:first-child{border-radius:0}
-    .preview-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f8fafc;color:#374151;vertical-align:middle;max-width:220px;overflow:hidden;text-overflow:ellipsis}
-    .preview-table tbody tr:hover td{background:#fef9f9}
-    .preview-table tbody tr:last-child td{border-bottom:none}
-    .row-num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:24px;background:#f1f5f9;border-radius:6px;font-size:11px;font-weight:700;color:#64748b}
-    .nim-cell{font-family:monospace;font-size:12px;color:#1e293b;font-weight:600}
-    .sem-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
-    .sem-ganjil{background:#fef3c7;color:#92400e}
-    .sem-genap{background:#dbeafe;color:#1d4ed8}
-    .pen-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
-    .pen-ek{background:#fce7f3;color:#be185d}
-    .pen-in{background:#d1fae5;color:#047857}
-    .sks-cell{text-align:center;font-weight:700;color:#7B1113}
-    .empty-cell{color:#cbd5e1;font-style:italic}
-</style>
+    @vite(['resources/css/confirm-import.css', 'resources/js/confirm-import.js'])
 @endsection
 
 @section('content')
@@ -230,7 +174,7 @@
                     <div style="font-size: 16px; font-weight: 700;" id="genericErrorTitle">Terjadi Kesalahan</div>
                 </div>
             </div>
-            <button class="close-btn" onclick="document.getElementById('genericErrorModal').style.display='none'">✕</button>
+            <button class="close-btn" type="button">✕</button>
         </div>
         <div class="modal-body">
             <div style="padding:20px; text-align:center; color:#374151; line-height:1.6" id="genericErrorContent">
@@ -238,7 +182,7 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-red" onclick="document.getElementById('genericErrorModal').style.display='none'">Tutup</button>
+            <button class="btn btn-red" type="button">Tutup</button>
         </div>
     </div>
 </div>
@@ -247,166 +191,12 @@
 
 @section('scripts')
 <script>
-const confirmForm = document.getElementById('confirmForm');
-const tempPath = '{{ session("last_import_path") }}';
-const previewTotalRows = {{ $rowCount }};
-
-confirmForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    // Show Progress Modal
-    const progressModal = document.getElementById('progressModal');
-    const progressTitle = document.getElementById('progressTitle');
-    const progressStatus = document.getElementById('progressStatus');
-    const progressBar = document.getElementById('progressBar');
-    const progressPercent = document.getElementById('progressPercent');
-
-    progressModal.style.display = 'flex';
-    progressTitle.textContent = "Menyimpan ke Database...";
-    progressStatus.textContent = "Menyiapkan penyimpanan...";
-    progressBar.style.width = "0%";
-    progressPercent.textContent = "0%";
-
-    // Start importing in chunks
-    const chunkSize = 1000;
-    importChunk(tempPath, 2, chunkSize, previewTotalRows);
-});
-
-function importChunk(tempPath, offset, limit, totalRows) {
-    const progressStatus = document.getElementById('progressStatus');
-    const progressBar = document.getElementById('progressBar');
-    const progressPercent = document.getElementById('progressPercent');
-
-    // Update status text
-    const endRow = Math.min(offset + limit - 1, totalRows + 1);
-    progressStatus.textContent = `Menyimpan baris ${offset - 1} s/d ${endRow - 1} dari ${totalRows}...`;
-
-    // Calculate percentage
-    const processed = offset - 2;
-    const percent = Math.floor((processed / totalRows) * 100);
-    progressBar.style.width = `${percent}%`;
-    progressPercent.textContent = `${percent}%`;
-
-    // Process chunk request
-    fetch('{{ route("input.process-chunk") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            temp_path: tempPath,
-            mode: 'import',
-            offset: offset,
-            limit: limit
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                return response.json().then(err => { throw err; });
-            } else {
-                return response.text().then(text => {
-                    throw { message: `Kesalahan Server (${response.status}): Silakan periksa log server untuk detail.` };
-                });
-            }
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            const nextOffset = offset + limit;
-            if (nextOffset <= totalRows + 1) {
-                // Process next chunk
-                importChunk(tempPath, nextOffset, limit, totalRows);
-            } else {
-                // Done! Update progress to 100%
-                progressBar.style.width = "100%";
-                progressPercent.textContent = "100%";
-                
-                setTimeout(() => {
-                    document.getElementById('progressModal').style.display = 'none';
-                    // Redirect back to input page with success message
-                    window.location.href = '{{ url("/input-data") }}';
-                }, 400);
-            }
-        } else {
-            throw { message: data.message || "Gagal menyimpan data." };
-        }
-    })
-    .catch(err => {
-        document.getElementById('progressModal').style.display = 'none';
-        showGenericError(err.message || `Terjadi kesalahan saat menyimpan baris ${offset} - ${endRow}.`);
-    });
-}
-
-function showGenericError(message) {
-    document.getElementById('genericErrorContent').textContent = message;
-    document.getElementById('genericErrorModal').style.display = 'flex';
-}
-
-// Pagination Logic
-const allRows = document.querySelectorAll('.preview-row');
-const totalRows = allRows.length;
-const perPage = 100;
-let currentPage = 1;
-const totalPages = Math.ceil(totalRows / perPage);
-
-function renderTable() {
-    const start = (currentPage - 1) * perPage;
-    const end = Math.min(start + perPage, totalRows);
-
-    allRows.forEach((row, index) => {
-        if (index >= start && index < end) {
-            row.style.display = 'table-row';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-
-    document.getElementById('tableShown').textContent = Math.min(perPage, totalRows - start);
-    document.getElementById('tableTotal').textContent = totalRows;
-    document.getElementById('pageText').textContent = `${totalRows > 0 ? start + 1 : 0} - ${end} / ${totalRows}`;
-
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
-
-    if (currentPage <= 1) {
-        prevBtn.disabled = true;
-        prevBtn.style.opacity = '0.5';
-    } else {
-        prevBtn.disabled = false;
-        prevBtn.style.opacity = '1';
-    }
-
-    if (currentPage >= totalPages) {
-        nextBtn.disabled = true;
-        nextBtn.style.opacity = '0.5';
-    } else {
-        nextBtn.disabled = false;
-        nextBtn.style.opacity = '1';
-    }
-}
-
-function prevPage() {
-    if (currentPage > 1) {
-        currentPage--;
-        renderTable();
-    }
-}
-
-function nextPage() {
-    if (currentPage < totalPages) {
-        currentPage++;
-        renderTable();
-    }
-}
-
-// Initial render
-if (totalRows > 0) {
-    renderTable();
-}
+    window.ConfirmImportData = {
+        tempPath: '{!! session("last_import_path") !!}',
+        previewTotalRows: {{ $rowCount ?? 0 }},
+        processChunkRoute: '{{ route("input.process-chunk") }}',
+        csrfToken: '{{ csrf_token() }}',
+        inputDataUrl: '{{ url("/input-data") }}'
+    };
 </script>
 @endsection

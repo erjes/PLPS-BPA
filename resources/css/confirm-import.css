@@ -1,0 +1,55 @@
+.confirm-card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;max-width:900px;margin:0 auto}
+
+/* Header */
+.confirm-header{background:linear-gradient(135deg,#f5f3ff,#ede9fe);padding:28px 32px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #e2e8f0}
+.confirm-header-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7B1113,#A41E1E);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.confirm-header h2{font-size:22px;font-weight:800;color:#1e293b;margin-bottom:2px}
+.confirm-header p{font-size:13px;color:#64748b}
+
+/* Body */
+.confirm-body{padding:32px}
+
+/* Stats */
+.confirm-stats{background:#f8fafc;border-radius:12px;padding:32px;text-align:center;margin-bottom:28px;border:1.5px solid #e2e8f0}
+.confirm-check{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 12px}
+.confirm-count{font-size:40px;font-weight:800;color:#1e293b;line-height:1}
+.confirm-label{font-size:14px;color:#64748b;margin-top:6px}
+
+/* Detail Cards */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0}
+@media(max-width:600px){.detail-grid{grid-template-columns:1fr}}
+.detail-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;gap:14px}
+.detail-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.detail-card h4{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px}
+.detail-card p{font-size:12px;color:#64748b;line-height:1.6}
+
+/* Footer */
+.confirm-footer{padding:20px 32px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:12px;background:#f9fafb}
+
+/* ── Preview Table ── */
+.preview-section{margin-top:32px}
+.preview-section-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.preview-section-header h3{font-size:17px;font-weight:700;color:#1e293b;margin:0}
+.preview-section-header .badge-count{background:#fef2f2;color:#7B1113;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px}
+.preview-notice{display:flex;align-items:center;gap:8px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 16px;font-size:12.5px;color:#92400e;margin-bottom:14px}
+.preview-notice i{font-size:14px;color:#d97706;flex-shrink:0}
+
+.preview-wrap{overflow-x:auto;border-radius:12px;border:1.5px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.preview-table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+.preview-table thead{position:sticky;top:0;z-index:1}
+.preview-table thead tr{background:linear-gradient(135deg,#1e293b,#334155)}
+.preview-table th{padding:11px 14px;text-align:left;font-weight:600;color:#f1f5f9;border-right:1px solid rgba(255,255,255,.08);font-size:12px;letter-spacing:.3px}
+.preview-table th:first-child{border-radius:0}
+.preview-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f8fafc;color:#374151;vertical-align:middle;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.preview-table tbody tr:hover td{background:#fef9f9}
+.preview-table tbody tr:last-child td{border-bottom:none}
+.row-num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:24px;background:#f1f5f9;border-radius:6px;font-size:11px;font-weight:700;color:#64748b}
+.nim-cell{font-family:monospace;font-size:12px;color:#1e293b;font-weight:600}
+.sem-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
+.sem-ganjil{background:#fef3c7;color:#92400e}
+.sem-genap{background:#dbeafe;color:#1d4ed8}
+.pen-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
+.pen-ek{background:#fce7f3;color:#be185d}
+.pen-in{background:#d1fae5;color:#047857}
+.sks-cell{text-align:center;font-weight:700;color:#7B1113}
+.empty-cell{color:#cbd5e1;font-style:italic}

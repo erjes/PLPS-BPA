@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Management</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/super-admin.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -17,69 +17,68 @@
         @keyframes checkBounce{0%{transform:scale(0)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
         .success-box h2{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:8px; margin-top:0;}
         .success-box p{font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.6}
-        .btn-primary{background-color:#7B1113; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background 0.2s;}
-        .btn-primary:hover{background-color:#5a0c0e;}
     </style>
 </head>
-<body class="bg-gray-50 p-6 md:p-10 min-h-screen">
-    
-    <div class="max-w-5xl mx-auto flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold tracking-tight" style="color: #7B1113;">Super Admin</h1>
-            <p class="text-gray-600 mt-1">Kelola akun admin</p>
-        </div>
-        <div class="flex flex-col items-end justify-center">
-            <form action="/logout" method="POST" class="inline">
-                @csrf
-                <button type="submit" class="text-red-500 hover:text-red-700 text-sm font-medium"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm p-8" style="box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800">Daftar Admin</h2>
+<body>
+    <div class="sa-container">
+        
+        <header class="sa-header">
+            <div class="sa-title">
+                <h1>Super Admin</h1>
+                <p>Kelola akun admin</p>
             </div>
-            <a href="{{ route('admins.create') }}" class="bg-[#7B1113] hover:bg-red-900 text-white font-medium py-2 px-5 rounded-lg flex items-center gap-2 transition shadow-sm">
-                <i class="fas fa-plus "></i> Create Admin
-            </a>
-        </div>
+            <div class="sa-actions">
+                <form action="/logout" method="POST" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn-logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </header>
 
-        {{-- Success message handled by SweetAlert below --}}
+        <div class="sa-card">
+            <div class="sa-card-header">
+                <h2>Daftar Admin</h2>
+                <a href="{{ route('admins.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Admin
+                </a>
+            </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr style="background-color: #7B1113; color: white;">
-                        <th class="px-6 py-4 font-semibold text-sm rounded-l-xl">No</th>
-                        <th class="px-6 py-4 font-semibold text-sm">Username</th>
-                        <th class="px-6 py-4 font-semibold text-sm rounded-r-xl">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-gray-700 text-sm">
-                    @foreach($admins as $index => $admin)
-                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-                        <td class="px-6 py-4">{{ $index + 1 }}</td>
-                        <td class="px-6 py-4 font-medium">{{ $admin->username }}</td>
-                        <td class="px-6 py-4 flex gap-3">
-                            <a href="{{ route('admins.edit', $admin->id_admin) }}" class="border border-gray-400 text-gray-600 hover:bg-gray-100 font-medium py-1 px-4 rounded-full flex items-center gap-2 transition">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                            <form action="{{ route('admins.destroy', $admin->id_admin) }}" method="POST" class="delete-form">
-                                @csrf
-                                @method('DELETE')
-                                <button type="button" class="btn-delete border border-red-500 text-red-500 hover:bg-red-50 font-medium py-1 px-4 rounded-full flex items-center gap-2 transition">
-                                    <i class="fas fa-trash-alt"></i> Hapus
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <div class="sa-table-wrapper">
+                <table class="sa-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($admins as $index => $admin)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td><strong>{{ $admin->username }}</strong></td>
+                            <td>
+                                <div class="td-actions">
+                                    <a href="{{ route('admins.edit', $admin->id_admin) }}" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <form action="{{ route('admins.destroy', $admin->id_admin) }}" method="POST" class="delete-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button" class="btn btn-outline-red btn-sm btn-delete">
+                                            <i class="fas fa-trash-alt"></i> Hapus
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
     {{-- SUCCESS MODAL (interactive popup) --}}
     @if(session('success'))

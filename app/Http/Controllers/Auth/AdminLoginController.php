@@ -10,15 +10,19 @@ use Illuminate\Validation\ValidationException;
 
 class AdminLoginController extends Controller
 {
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
-        return view('auth.login');
+        $isSuperAdmin = $request->is('care');
+        $title = $isSuperAdmin ? 'Login Super Admin' : 'Login Admin';
+        $postUrl = $isSuperAdmin ? url('/care') : url('/login');
+        
+        return view('auth.login', compact('title', 'postUrl', 'isSuperAdmin'));
     }
 
     /**
      * Step 1: Verifikasi credentials.
-     * - Admin biasa  → langsung login ke /dashboard
-     * - Super admin  → simpan pending session, redirect ke halaman captcha
+     * - Admin biasa (/login)  → langsung login ke /dashboard
+     * - Super admin (/care)  → simpan pending session, redirect ke halaman captcha
      */
     public function login(Request $request)
     {
@@ -42,6 +46,22 @@ class AdminLoginController extends Controller
         }
 
         $admin = Auth::guard('admin')->user();
+        $isSuperAdminRoute = $request->is('care');
+
+        // Pengecekan route vs role
+        if ($isSuperAdminRoute && $admin->role !== 'super_admin') {
+            Auth::guard('admin')->logout();
+            throw ValidationException::withMessages([
+                'login_id' => 'Akses ditolak. Silakan login melalui halaman /login untuk Admin biasa.',
+            ]);
+        }
+
+        if (!$isSuperAdminRoute && $admin->role === 'super_admin') {
+            Auth::guard('admin')->logout();
+            throw ValidationException::withMessages([
+                'login_id' => 'Akses ditolak. Silakan login melalui halaman /care untuk Super Admin.',
+            ]);
+        }
 
         if ($admin->role === 'super_admin') {
             // Belum sepenuhnya login — logout dulu, lalu simpan pending di session
@@ -63,7 +83,7 @@ class AdminLoginController extends Controller
     public function showCaptchaForm()
     {
         if (!session()->has('pending_super_admin_id')) {
-            return redirect()->route('login');
+            return redirect()->route('login.superadmin');
         }
         return view('auth.captcha');
     }
@@ -74,7 +94,7 @@ class AdminLoginController extends Controller
     public function verifyCaptcha(Request $request)
     {
         if (!session()->has('pending_super_admin_id')) {
-            return redirect()->route('login');
+            return redirect()->route('login.superadmin');
         }
 
         $request->validate([
@@ -89,7 +109,7 @@ class AdminLoginController extends Controller
 
         if (!$admin) {
             $request->session()->forget(['pending_super_admin_id', 'pending_remember']);
-            return redirect()->route('login')
+            return redirect()->route('login.superadmin')
                 ->withErrors(['login_id' => 'Sesi tidak valid, silakan login ulang.']);
         }
 

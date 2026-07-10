@@ -6,13 +6,16 @@ use App\Http\Controllers\DataPlpsController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use App\Http\Controllers\AdminManagementController;
 
-Route::get('/', function () {
-    return redirect('/dashboard');
-});
+Route::get('/', [DataPlpsController::class, 'index']);
 
-// Auth routes
-Route::get('/care', [AdminLoginController::class, 'showLoginForm'])->name('login');
+
+// Auth routes (Admin & Superadmin separated)
+Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [AdminLoginController::class, 'login']);
+
+Route::get('/care', [AdminLoginController::class, 'showLoginForm'])->name('login.superadmin');
 Route::post('/care', [AdminLoginController::class, 'login']);
+
 Route::post('/logout', [AdminLoginController::class, 'logout'])->name('logout');
 
 // captcha step superadmin (cm bisa diakses pas sesi pending)

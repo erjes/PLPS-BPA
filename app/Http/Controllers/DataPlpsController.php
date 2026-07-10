@@ -755,20 +755,20 @@ class DataPlpsController extends Controller
 
                 $previewRows[] = [
                     'excel_row'        => $rowNum,
-                    'program'          => trim($rowValues[0]  ?? ''),
-                    'sub_program'      => trim($rowValues[1]  ?? ''),
-                    'fakultas'         => trim($rowValues[2]  ?? ''),
-                    'prodi'            => trim($rowValues[3]  ?? ''),
+                    'program'          => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[0] ?? '')),
+                    'sub_program'      => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[1] ?? '')),
+                    'fakultas'         => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[2] ?? '')),
+                    'prodi'            => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[3] ?? '')),
                     'nim'              => preg_replace('/[^0-9]/', '', $rowValues[4] ?? ''),
-                    'nama'             => trim($rowValues[5]  ?? ''),
-                    'tahun_ajaran'     => trim($rowValues[6]  ?? ''),
-                    'semester'         => trim($rowValues[7]  ?? ''),
-                    'semester_ta'      => trim($rowValues[8]  ?? ''),
-                    'kegiatan'         => trim($rowValues[9]  ?? ''),
-                    'penyelenggara'    => trim($rowValues[10] ?? ''),
-                    'mitra'            => trim($rowValues[11] ?? ''),
-                    'dosen_pembimbing' => trim($rowValues[12] ?? ''),
-                    'sks'              => trim($rowValues[13] ?? ''),
+                    'nama'             => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[5] ?? '')),
+                    'tahun_ajaran'     => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[6] ?? '')),
+                    'semester'         => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[7] ?? '')),
+                    'semester_ta'      => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[8] ?? '')),
+                    'kegiatan'         => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[9] ?? '')),
+                    'penyelenggara'    => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[10] ?? '')),
+                    'mitra'            => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[11] ?? '')),
+                    'dosen_pembimbing' => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[12] ?? '')),
+                    'sks'              => trim(preg_replace('/[\pZ\pC]+/u', ' ', $rowValues[13] ?? '')),
                 ];
             }
 
@@ -1036,7 +1036,8 @@ class DataPlpsController extends Controller
      */
     private function fuzzyFirstOrCreate(string $modelClass, string $column, string $value, float $threshold = 80.0)
     {
-        $value = preg_replace('/\s+/', ' ', trim($value));
+        $value = preg_replace('/[\pZ\pC]+/u', ' ', $value);
+        $value = trim($value);
         if (empty($value)) return null;
 
         $lowerValue = mb_strtolower($value);

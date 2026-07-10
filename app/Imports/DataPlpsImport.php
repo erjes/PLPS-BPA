@@ -302,7 +302,9 @@ class DataPlpsImport implements ToCollection
     private function normalize(?string $value): string
     {
         if ($value === null) return '';
-        return preg_replace('/\s+/', ' ', trim($value));
+        // Replace all unicode spaces (including NBSP \xc2\xa0) and control chars with standard space
+        $value = preg_replace('/[\pZ\pC]+/u', ' ', $value);
+        return trim($value);
     }
     /**
      * Normalize dan uppercase.
