@@ -10,15 +10,19 @@ use App\Models\Program;
 use App\Models\SubProgram;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 use Illuminate\Support\Facades\DB;
 use Exception;
-class DataPlpsImport implements ToCollection
+class DataPlpsImport implements ToCollection, WithChunkReading, WithStartRow
 {
     public $errors = [];
     public $validateOnly = false;
     public $validRowCount = 0;
     public $processedKeys = [];
     public $isChunk = false;
+    public $currentRow = 2; // Default starting row when using WithStartRow
+
     public function __construct(bool $validateOnly = false, bool $isChunk = false, array $processedKeys = [])
     {
         $this->validateOnly = $validateOnly;
@@ -56,8 +60,6 @@ class DataPlpsImport implements ToCollection
             foreach ($rows as $index => $row) {
                 if ($this->isChunk) {
                     if ($index == 1) continue;
-                } else {
-                    if ($index == 0) continue;
                 }
                 $programInputs[] = $this->normalize($row[0] ?? '');
                 $subProgramInputs[] = $this->normalize($row[1] ?? '');
@@ -112,8 +114,7 @@ class DataPlpsImport implements ToCollection
                     $line = $index; // For custom chunk collection, keys are exact Excel row numbers
                     if ($line == 1) continue; // Skip header row
                 } else {
-                    if ($index == 0) continue; // Skip header row
-                    $line = $index + 1;
+                    $line = $this->currentRow++;
                 }
                 try {
                     // === NORMALISASI INPUT ===
@@ -293,6 +294,19 @@ class DataPlpsImport implements ToCollection
             }
         }); // end DB::transaction
     }
+    // =============================================
+    // CHUNKING CONFIGURATION
+    // =============================================
+    public function chunkSize(): int
+    {
+        return 1000;
+    }
+
+    public function startRow(): int
+    {
+        return 2; // Skip header row
+    }
+
     // =============================================
     // HELPER METHODS
     // =============================================

@@ -67,6 +67,14 @@ if (uploadForm) {
         progressBar.style.width = "0%";
         progressPercent.textContent = "0%";
 
+        // Check file size limit (10MB matching backend validation)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            progressModal.style.display = 'none';
+            showGenericError(`Ukuran file terlalu besar (${formatSize(file.size)}). Maksimal ukuran file adalah 10 MB.`);
+            return;
+        }
+
         // Prepare upload data
         const formData = new FormData();
         formData.append('file', file);
@@ -82,6 +90,9 @@ if (uploadForm) {
         .then(response => {
             if (!response.ok) {
                 const contentType = response.headers.get("content-type");
+                if (response.status === 413) {
+                    throw { message: 'Ukuran file terlalu besar (Content Too Large). Konfigurasi server PHP (post_max_size / upload_max_filesize) Anda menolak file ini.' };
+                }
                 if (contentType && contentType.indexOf("application/json") !== -1) {
                     return response.json().then(err => { throw err; });
                 } else {
@@ -111,7 +122,11 @@ if (uploadForm) {
         })
         .catch(err => {
             progressModal.style.display = 'none';
-            showGenericError(err.message || "Terjadi kesalahan koneksi saat mengunggah berkas.");
+            let errMsg = err.message || "Terjadi kesalahan koneksi saat mengunggah berkas.";
+            if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+                errMsg = "Koneksi terputus. Hal ini biasanya terjadi jika file Excel terlalu besar melebihi batas konfigurasi PHP (post_max_size / upload_max_filesize) pada server Anda.";
+            }
+            showGenericError(errMsg);
         });
     });
 }
@@ -205,9 +220,15 @@ function renderValidationErrors(errors) {
     errorTableBody.innerHTML = '';
 
     errors.forEach(error => {
-        const parts = error.split(': ');
-        const lineNum = parts[0].replace('Baris ', '');
-        const message = parts[1] || error;
+        const splitIndex = error.indexOf(': ');
+        let lineNum = '';
+        let message = error;
+        
+        if (splitIndex !== -1 && error.startsWith('Baris')) {
+            lineNum = error.substring(0, splitIndex).replace('Baris ', '');
+            message = error.substring(splitIndex + 2);
+        }
+
         const isSimilarity = error.includes('Kemungkinan typo') || error.includes('kemiripan');
 
         const tr = document.createElement('tr');
