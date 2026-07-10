@@ -59,7 +59,7 @@ class AdminLoginController extends Controller
         if (!$isSuperAdminRoute && $admin->role === 'super_admin') {
             Auth::guard('admin')->logout();
             throw ValidationException::withMessages([
-                'login_id' => 'Akses ditolak. Silakan login melalui halaman /care untuk Super Admin.',
+                'login_id' => 'Akses ditolak.',
             ]);
         }
 
