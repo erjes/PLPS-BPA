@@ -11,6 +11,7 @@ use App\Models\Prodi;
 use App\Models\Program;
 use App\Models\SubProgram;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\DataPlpsImport;
 
@@ -217,11 +218,125 @@ class DataPlpsController extends Controller
     }
 
     /**
+     * API endpoint: Returns all chart data + summary stats as JSON.
+     * Used by the dashboard filter to update charts/cards via AJAX without page reload.
+     */
+    public function getDashboardChartData(Request $request)
+    {
+        $isFirstLoad = !$request->has('program_id') && !$request->has('sub_program_id')
+            && !$request->has('fakultas_id') && !$request->has('prodi_id')
+            && !$request->has('penyelenggara') && !$request->has('mitra_id')
+            && !$request->has('semester_ta') && !$request->has('tahun_ajaran');
+
+        if ($isFirstLoad) {
+            $defaultSemesterTa = \App\Models\DataPlps::select('semester_ta')
+                ->distinct()->orderBy('semester_ta', 'desc')->limit(5)
+                ->pluck('semester_ta')->toArray();
+            if (!empty($defaultSemesterTa)) {
+                $request->merge(['semester_ta' => $defaultSemesterTa]);
+            }
+        }
+
+        $baseQuery = DataPlps::query();
+        $this->applyEloquentFilters($baseQuery, $request);
+
+        $totalMahasiswa   = (clone $baseQuery)->distinct()->count('nim');
+        $totalMitra       = (clone $baseQuery)->distinct()->count('mitra_id');
+        $totalProgram     = (clone $baseQuery)->distinct()->count('program_id');
+        $totalSubProgram  = (clone $baseQuery)->distinct()->count('sub_program_id');
+        $totalMitraEksternal = (clone $baseQuery)->where('penyelenggara', 'Eksternal')->distinct()->count('mitra_id');
+        $totalMitraInternal  = (clone $baseQuery)->where('penyelenggara', 'Internal')->distinct()->count('mitra_id');
+
+        $mahasiswaPerFakultas = $this->chartQuery($request)
+            ->select('fakultas.nama_fakultas', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('fakultas.nama_fakultas')->orderByDesc('total')->limit(5)->get();
+
+        $topProdi = $this->chartQuery($request)
+            ->select('prodis.nama_prodi', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('prodis.nama_prodi')->orderByDesc('total')->limit(5)->get();
+
+        $topProgram = $this->chartQuery($request)
+            ->join('programs', 'data_plps.program_id', '=', 'programs.id')
+            ->select('programs.nama_program', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('programs.nama_program')->orderByDesc('total')->limit(5)->get();
+
+        $distribusiProgram = $this->chartQuery($request)
+            ->join('programs', 'data_plps.program_id', '=', 'programs.id')
+            ->select('programs.nama_program', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('programs.nama_program')->orderByDesc('total')->get();
+
+        $topMitraEksternal = $this->chartQuery($request)
+            ->where('penyelenggara', 'Eksternal')
+            ->join('mitras', 'data_plps.mitra_id', '=', 'mitras.id')
+            ->select('mitras.nama_mitra', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('mitras.nama_mitra', 'mitras.id')->orderByDesc('total')->limit(5)->get();
+
+        $topMitraInternal = $this->chartQuery($request)
+            ->where('penyelenggara', 'Internal')
+            ->join('mitras', 'data_plps.mitra_id', '=', 'mitras.id')
+            ->select('mitras.nama_mitra', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('mitras.nama_mitra', 'mitras.id')->orderByDesc('total')->limit(5)->get();
+
+        $trenRaw = $this->chartQuery($request)
+            ->select('fakultas.nama_fakultas', 'data_plps.semester_ta', DB::raw('COUNT(DISTINCT data_plps.nim) as total'))
+            ->groupBy('fakultas.nama_fakultas', 'data_plps.semester_ta')
+            ->orderBy('data_plps.semester_ta')->get();
+
+        $semesters       = $trenRaw->pluck('semester_ta')->unique()->sort()->values()->toArray();
+        $fakultasInTren  = $trenRaw->pluck('nama_fakultas')->unique()->values();
+        $trenSeries = [];
+        foreach ($fakultasInTren as $fak) {
+            $data = [];
+            foreach ($semesters as $sem) {
+                $entry = $trenRaw->where('nama_fakultas', $fak)->where('semester_ta', $sem)->first();
+                $data[] = $entry ? $entry->total : 0;
+            }
+            $trenSeries[] = ['label' => $fak, 'data' => $data];
+        }
+
+        return response()->json([
+            'summary' => [
+                'total_mahasiswa'      => $totalMahasiswa,
+                'total_mitra'          => $totalMitra,
+                'total_program'        => $totalProgram,
+                'total_sub_program'    => $totalSubProgram,
+                'total_mitra_eksternal' => $totalMitraEksternal,
+                'total_mitra_internal'  => $totalMitraInternal,
+            ],
+            'charts' => [
+                'fakultas'          => $mahasiswaPerFakultas,
+                'prodi'             => $topProdi,
+                'program'           => $topProgram,
+                'distribusi_program' => $distribusiProgram,
+                'mitra_eksternal'   => $topMitraEksternal,
+                'mitra_internal'    => $topMitraInternal,
+                'tren_labels'       => $semesters,
+                'tren_series'       => $trenSeries,
+            ],
+        ]);
+    }
+
+    /**
      * API endpoint for lazy-loaded table data.
      * Returns paginated JSON data (50 per page).
      */
     public function tableData(Request $request)
     {
+        // Apply same default filter as index() — show last 5 semesters on first load
+        $isFirstLoad = !$request->has('program_id') && !$request->has('sub_program_id')
+            && !$request->has('fakultas_id') && !$request->has('prodi_id')
+            && !$request->has('penyelenggara') && !$request->has('mitra_id')
+            && !$request->has('semester_ta') && !$request->has('tahun_ajaran');
+
+        if ($isFirstLoad) {
+            $defaultSemesterTa = DataPlps::select('semester_ta')
+                ->distinct()->orderBy('semester_ta', 'desc')->limit(5)
+                ->pluck('semester_ta')->toArray();
+            if (!empty($defaultSemesterTa)) {
+                $request->merge(['semester_ta' => $defaultSemesterTa]);
+            }
+        }
+
         $query = DataPlps::with(['program', 'subProgram', 'mahasiswa.prodi.fakultas', 'kegiatan', 'mitra']);
         $this->applyEloquentFilters($query, $request);
 
@@ -508,9 +623,18 @@ class DataPlpsController extends Controller
      */
     public function validateImport(Request $request)
     {
+        if (!$request->hasFile('file') || !$request->file('file')->isValid()) {
+            return back()->with('error', 'File tidak ditemukan atau ukuran file melebihi batas upload maksimal server (upload_max_filesize di php.ini).');
+        }
+
         $request->validate([
-            'file' => 'required|mimes:xlsx,csv|max:10240'
+            'file' => 'required|file|max:10240'
         ]);
+
+        $extension = $request->file('file')->getClientOriginalExtension();
+        if (!in_array(strtolower($extension), ['xlsx', 'csv'])) {
+            return back()->with('error', 'Format file tidak didukung. Harus berupa xlsx atau csv.');
+        }
 
         $originalName = $request->file('file')->getClientOriginalName();
 
@@ -547,9 +671,24 @@ class DataPlpsController extends Controller
      */
     public function uploadTempFile(Request $request)
     {
+        if (!$request->hasFile('file') || !$request->file('file')->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File tidak ditemukan atau ukuran file melebihi batas upload maksimal server (upload_max_filesize di php.ini).'
+            ], 422);
+        }
+
         $request->validate([
-            'file' => 'required|mimes:xlsx,csv|max:10240'
+            'file' => 'required|file|max:10240'
         ]);
+
+        $extension = $request->file('file')->getClientOriginalExtension();
+        if (!in_array(strtolower($extension), ['xlsx', 'csv'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Format file tidak didukung. Harus berupa .xlsx atau .csv'
+            ], 422);
+        }
 
         $originalName = $request->file('file')->getClientOriginalName();
         $storedPath = $request->file('file')->store('temp-imports');
@@ -605,11 +744,11 @@ class DataPlpsController extends Controller
         ]);
 
         $tempPath = $request->temp_path;
-        $mode = $request->mode;
         $offset = (int) $request->offset;
         $limit = (int) $request->limit;
+        $mode = $request->mode; // 'validate' or 'import'
 
-        if (!\Illuminate\Support\Facades\Storage::exists($tempPath)) {
+        if (!$tempPath || !\Illuminate\Support\Facades\Storage::exists($tempPath)) {
             return response()->json([
                 'success' => false,
                 'message' => 'File import tidak ditemukan. Silakan upload ulang.'
@@ -646,20 +785,36 @@ class DataPlpsController extends Controller
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet, $worksheet);
 
-            if ($chunkCollection->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'errors' => [],
-                    'valid_count' => 0
-                ]);
-            }
-
             // Load processedKeys from session
             if ($offset == 2) {
                 session()->forget(['import_processed_keys', 'import_valid_row_count']);
                 $processedKeys = [];
             } else {
                 $processedKeys = session('import_processed_keys', []);
+            }
+
+            $totalDataRows = session('import_row_count', 0);
+            $trueHighestRow = $totalDataRows > 0 ? $totalDataRows + 1 : $highestRow;
+            $isLastChunk = ($offset + $limit > $trueHighestRow);
+
+            if ($chunkCollection->isEmpty()) {
+                if ($mode === 'import' && $isLastChunk) {
+                    $totalCount = session('import_valid_row_count', 0);
+                    \App\Models\ImportHistory::create([
+                        'filename' => session('last_import_filename', 'file.xlsx'),
+                        'admin_id' => \Illuminate\Support\Facades\Auth::guard('admin')->id(),
+                        'rows_count' => $totalCount,
+                    ]);
+                    \Illuminate\Support\Facades\Storage::delete($tempPath);
+                    session()->forget(['last_import_path', 'last_import_filename', 'import_row_count', 'import_processed_keys', 'import_valid_row_count']);
+                    session()->flash('success', "{$totalCount} data berhasil diimport ke database!");
+                    session()->flash('show_success_modal', true);
+                }
+                return response()->json([
+                    'success' => true,
+                    'errors' => [],
+                    'valid_count' => 0
+                ]);
             }
 
             // Initialize Importer with chunk settings
@@ -685,10 +840,9 @@ class DataPlpsController extends Controller
             }
 
             // If importing and this is the last chunk
-            $isLastChunk = ($offset + $limit > $highestRow);
             if ($mode === 'import' && $isLastChunk) {
                 // Record history using total valid rows imported
-                $totalCount = session('import_valid_row_count', $importer->validRowCount);
+                $totalCount = session('import_valid_row_count', isset($importer) ? $importer->validRowCount : 0);
                 \App\Models\ImportHistory::create([
                     'filename' => session('last_import_filename', 'file.xlsx'),
                     'admin_id' => \Illuminate\Support\Facades\Auth::guard('admin')->id(),
@@ -1030,6 +1184,53 @@ class DataPlpsController extends Controller
             'deleted_count' => $count,
         ]);
     }
+
+    /**
+     * API: Reset all imported and lookup data (admin only).
+     */
+    public function resetData()
+    {
+        if (!auth()->guard('admin')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aksi tidak diizinkan.'
+            ], 403);
+        }
+
+        try {
+            Schema::disableForeignKeyConstraints();
+            
+            DB::table('data_plps')->truncate();
+            DB::table('mahasiswas')->truncate();
+            DB::table('prodis')->truncate();
+            DB::table('programs')->truncate();
+            DB::table('sub_programs')->truncate();
+            DB::table('kegiatans')->truncate();
+            DB::table('mitras')->truncate();
+            
+            Schema::enableForeignKeyConstraints();
+
+            // Record database reset action in history
+            \App\Models\ImportHistory::create([
+                'filename' => 'RESET DATABASE',
+                'admin_id' => auth()->guard('admin')->id(),
+                'rows_count' => 0
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Semua data berhasil direset.'
+            ]);
+        } catch (\Exception $e) {
+            Schema::enableForeignKeyConstraints();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mereset data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 
     /**
      * Fuzzy firstOrCreate for dynamic data (Mitra, Kegiatan) during edit.

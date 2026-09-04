@@ -165,6 +165,250 @@ function resetAndLoadTable() {
     loadTablePage(1);
 }
 
+// =============================================
+// === AJAX Dashboard Refresh (Charts + Cards) ===
+// =============================================
+
+let dashboardFetchTimer = null;
+let dashboardAbortController = null;
+
+/**
+ * Build URLSearchParams from active filter checkboxes.
+ */
+function getActiveFilterParams() {
+    const params = new URLSearchParams();
+    document.querySelectorAll('.ms-dropdown').forEach(dropdown => {
+        const name = dropdown.dataset.name;
+        const allCbs = dropdown.querySelectorAll('.ms-options input[type=checkbox]');
+        const checked = dropdown.querySelectorAll('.ms-options input[type=checkbox]:checked');
+        if (checked.length > 0 && checked.length < allCbs.length) {
+            checked.forEach(cb => params.append(name + '[]', cb.value));
+        }
+    });
+    return params;
+}
+
+/**
+ * Update summary stat cards.
+ */
+function updateSummaryCards(summary) {
+    const fmt = n => Number(n).toLocaleString('id-ID');
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt(val); };
+    set('statTotalMahasiswa',   summary.total_mahasiswa);
+    set('statTotalMitra',       summary.total_mitra);
+    set('statTotalProgram',     summary.total_program);
+    set('statTotalSubProgram',  summary.total_sub_program);
+}
+
+/**
+ * Update a Chart.js instance with new labels + data.
+ * Handles horizontal bar charts and line/tren charts.
+ */
+function updateChart(chartInstance, labels, data, colors) {
+    if (!chartInstance) return;
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = data;
+    if (colors) chartInstance.data.datasets[0].backgroundColor = colors;
+    chartInstance.update();
+}
+
+/**
+ * Update distribusi program HTML bars (not a canvas chart).
+ */
+function updateDistribusiProgram(items) {
+    const container = document.getElementById('distribusiProgramContainer');
+    if (!container) return;
+    const progColorsList = ['#2173b5', '#673db0', '#0f766e', '#ca8a04', '#ea580c', '#4d7c0f', '#0369a1', '#b91c1c'];
+    const maxProg = items.reduce((m, p) => Math.max(m, p.total), 0);
+
+    if (items.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8;font-size:13px;text-align:center">Tidak ada data program</p>';
+        return;
+    }
+
+    const rows = items.map((prog, i) => {
+        const pct = maxProg > 0 ? (prog.total / maxProg) * 100 : 0;
+        const color = progColorsList[i % progColorsList.length];
+        return `<div style="display:flex;align-items:center;gap:20px">
+            <div style="width:260px;font-size:14px;font-weight:500;color:#334155">${esc(prog.nama_program)}</div>
+            <div style="flex:1;background:transparent;height:12px;display:flex;align-items:center">
+                <div style="height:12px;background:${color};border-radius:6px;width:${pct}%"></div>
+            </div>
+            <div style="width:80px;text-align:right;font-size:14px;font-weight:500;color:#1e293b">${Number(prog.total).toLocaleString('id-ID')}</div>
+        </div>`;
+    }).join('');
+
+    // Wrap in the same flex container as the Blade template
+    container.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${rows}</div>`;
+}
+
+/**
+ * Update mitra ranking list (eksternal or internal).
+ */
+function updateMitraList(containerId, items, color) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const maxVal = items.reduce((m, p) => Math.max(m, p.total), 0);
+
+    if (items.length === 0) {
+        container.innerHTML = `<p style="color:#94a3b8;font-size:13px;text-align:center">Tidak ada data</p>`;
+        return;
+    }
+
+    container.innerHTML = `<ul class="mitra-list">` + items.map((mt, i) => {
+        const pct = maxVal > 0 ? (mt.total / maxVal) * 100 : 0;
+        return `<li style="display:flex;align-items:center;padding:10px 0;gap:14px;border-bottom:none">
+            <div style="width:16px;text-align:right;font-size:13px;font-weight:600;color:#64748b">${i + 1}</div>
+            <div style="flex:1">
+                <div style="font-size:13px;margin-bottom:6px;font-weight:500;color:#334155">${esc(mt.nama_mitra)}</div>
+                <div style="background:#f1f5f9;height:6px;border-radius:3px;width:100%;overflow:hidden">
+                    <div style="height:100%;background:${color};border-radius:3px;width:${pct}%"></div>
+                </div>
+            </div>
+            <div style="font-size:13px;font-weight:600;width:32px;text-align:right;color:#1e293b">${Number(mt.total).toLocaleString('id-ID')}</div>
+        </li>`;
+    }).join('') + `</ul>`;
+}
+
+/**
+ * Update mitra doughnut charts and percentage labels.
+ */
+function updateMitraDoughnut(totalEks, totalInt) {
+    const totalAll = totalEks + totalInt;
+    const pctEks = totalAll > 0 ? Math.round((totalEks / totalAll) * 100) : 0;
+    const pctInt = totalAll > 0 ? Math.round((totalInt / totalAll) * 100) : 0;
+
+    const elPctEks = document.getElementById('pctEksternal');
+    const elPctInt = document.getElementById('pctInternal');
+    if (elPctEks) elPctEks.textContent = pctEks + '%';
+    if (elPctInt) elPctInt.textContent = pctInt + '%';
+
+    const elEksTotal = document.getElementById('statMitraEksternal');
+    const elIntTotal = document.getElementById('statMitraInternal');
+    if (elEksTotal) elEksTotal.textContent = Number(totalEks).toLocaleString('id-ID');
+    if (elIntTotal) elIntTotal.textContent = Number(totalInt).toLocaleString('id-ID');
+
+    if (window._chartMitraEksternal) {
+        window._chartMitraEksternal.data.datasets[0].data = [totalEks, totalInt];
+        window._chartMitraEksternal.update();
+    }
+    if (window._chartMitraInternal) {
+        window._chartMitraInternal.data.datasets[0].data = [totalInt, totalEks];
+        window._chartMitraInternal.update();
+    }
+}
+
+/**
+ * Update tren chart with new series.
+ */
+function updateTrenChart(labels, series) {
+    if (!window._chartTren) return;
+    const fakultasColors = {
+        'FTE': '#004f86', 'FIF': '#c7a12c', 'FEB': '#239e91', 'FRI': '#0d8039',
+        'FKS': '#59329e', 'FIK': '#ea580c', 'FIT': '#00cc52', 'FKB': '#cc420c',
+        'TUP': '#b91c1c', 'TUS': '#6b7280'
+    };
+    function getFakColor(name) { return fakultasColors[name.toUpperCase()] || '#9ca3af'; }
+
+    window._chartTren.data.labels = labels;
+    window._chartTren.data.datasets = series.map(s => ({
+        label: s.label,
+        data: s.data,
+        borderColor: getFakColor(s.label),
+        backgroundColor: getFakColor(s.label),
+        tension: 0.3,
+        borderWidth: 3.5,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: false
+    }));
+    window._chartTren.update();
+}
+
+/**
+ * Main function: fetch all dashboard data and update all components.
+ */
+function fetchDashboardData() {
+    if (dashboardFetchTimer) clearTimeout(dashboardFetchTimer);
+    if (dashboardAbortController) dashboardAbortController.abort();
+
+    dashboardFetchTimer = setTimeout(() => {
+        const params = getActiveFilterParams();
+        dashboardAbortController = new AbortController();
+
+        // Show loading state on summary cards
+        document.querySelectorAll('.summary-card .value').forEach(el => {
+            el.style.opacity = '0.4';
+        });
+
+        fetch('/api/dashboard-data?' + params.toString(), {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            signal: dashboardAbortController.signal
+        })
+        .then(res => res.json())
+        .then(data => {
+            // Restore opacity
+            document.querySelectorAll('.summary-card .value').forEach(el => {
+                el.style.opacity = '1';
+            });
+
+            // 1. Summary cards
+            updateSummaryCards(data.summary);
+
+            // 2. Charts
+            const charts = data.charts;
+
+            // Fakultas
+            const fakLabels = charts.fakultas.map(r => r.nama_fakultas);
+            const fakData   = charts.fakultas.map(r => r.total);
+            const fakultasColors = {
+                'FTE': '#004f86', 'FIF': '#c7a12c', 'FEB': '#239e91', 'FRI': '#0d8039',
+                'FKS': '#59329e', 'FIK': '#ea580c', 'FIT': '#00cc52', 'FKB': '#cc420c',
+                'TUP': '#b91c1c', 'TUS': '#6b7280'
+            };
+            updateChart(window._chartFakultas, fakLabels, fakData,
+                fakLabels.map(n => fakultasColors[n.toUpperCase()] || '#9ca3af'));
+
+            // Prodi
+            const prodiLabels = charts.prodi.map(r => r.nama_prodi);
+            const prodiData   = charts.prodi.map(r => r.total);
+            const prodiColors = prodiLabels.map((_, i) => `rgba(123,17,19,${Math.max(1 - i * 0.08, 0.55)})`);
+            updateChart(window._chartProdi, prodiLabels, prodiData, prodiColors);
+
+            // Program
+            const progLabels  = charts.program.map(r => r.nama_program);
+            const progData    = charts.program.map(r => r.total);
+            const progColors  = ['#005A98', '#D3B048', '#31BAAD', '#109344', '#673DB0'];
+            updateChart(window._chartProgram, progLabels, progData, progColors.slice(0, progLabels.length));
+
+            // Distribusi Program
+            updateDistribusiProgram(charts.distribusi_program);
+
+            // Mitra lists
+            updateMitraList('mitraEksternalList', charts.mitra_eksternal, '#2173b5');
+            updateMitraList('mitraInternalList',  charts.mitra_internal,  '#0f766e');
+
+            // Mitra doughnut + totals
+            updateMitraDoughnut(data.summary.total_mitra_eksternal, data.summary.total_mitra_internal);
+
+            // Tren chart
+            updateTrenChart(charts.tren_labels, charts.tren_series);
+        })
+        .catch(err => {
+            if (err.name !== 'AbortError') {
+                console.error('Dashboard data fetch error:', err);
+                document.querySelectorAll('.summary-card .value').forEach(el => {
+                    el.style.opacity = '1';
+                });
+            }
+        });
+    }, 300);
+}
+
+
 function esc(str) {
     if (str === null || str === undefined) return '-';
     const div = document.createElement('div');
@@ -391,6 +635,38 @@ function saveEdit() {
 
 // === Export Modal ===
 function openExportModal() {
+    // Build active filter summary to show in the modal
+    const summaryEl = document.getElementById('exportFilterSummary');
+    if (summaryEl) {
+        const activeFilters = [];
+        document.querySelectorAll('.ms-dropdown').forEach(dropdown => {
+            const dataLabel = dropdown.dataset.label;
+            const allCbs  = dropdown.querySelectorAll('.ms-options input[type=checkbox]');
+            const checked = dropdown.querySelectorAll('.ms-options input[type=checkbox]:checked');
+            if (checked.length > 0 && checked.length < allCbs.length) {
+                const names = Array.from(checked).map(cb =>
+                    cb.closest('.ms-option').querySelector('span').textContent.trim()
+                );
+                activeFilters.push(`<div style="margin-bottom:6px">
+                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7B1113">${dataLabel}:</span>
+                    <span style="font-size:12px;color:#374151;margin-left:4px">${names.join(', ')}</span>
+                </div>`);
+            }
+        });
+
+        if (activeFilters.length > 0) {
+            summaryEl.innerHTML = `<div style="background:#fef9f9;border:1px solid #fecaca;border-radius:8px;padding:12px 14px">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#374151;margin-bottom:8px">
+                    <i class="fas fa-filter" style="color:#7B1113;margin-right:4px"></i>Filter Aktif:
+                </div>
+                ${activeFilters.join('')}
+            </div>`;
+        } else {
+            summaryEl.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12px;color:#15803d">
+                <i class="fas fa-info-circle" style="margin-right:4px"></i>Semua data (tidak ada filter aktif)
+            </div>`;
+        }
+    }
     document.getElementById('exportModalOverlay').classList.add('show');
 }
 
@@ -399,7 +675,10 @@ function closeExportModal() {
 }
 
 function doExport(type) {
-    const qs = window.location.search;
+    // Use current checkbox state (same as AJAX filters), NOT window.location.search
+    // This ensures export respects filters applied via AJAX without page reload
+    const params = getActiveFilterParams();
+    const qs = params.toString() ? '?' + params.toString() : '';
     if (type === 'excel') {
         window.location.href = '/api/export-excel' + qs;
     } else {
@@ -409,6 +688,7 @@ function doExport(type) {
 }
 
 // Attach globally since they are used via HTML onclick
+
 window.loadTablePage = loadTablePage;
 window.resetAndLoadTable = resetAndLoadTable;
 window.prevPage = prevPage;
@@ -426,3 +706,59 @@ window.saveEdit = saveEdit;
 window.openExportModal = openExportModal;
 window.closeExportModal = closeExportModal;
 window.doExport = doExport;
+
+// Export AJAX dashboard refresh functions so they can be called from
+// inline <script> blocks in Blade (ES module scope boundary fix)
+window.fetchDashboardData = fetchDashboardData;
+window.getActiveFilterParams = getActiveFilterParams;
+
+// Reset Data Handlers
+function resetAllData() {
+    document.getElementById('resetConfirmOverlay')?.classList.add('show');
+}
+
+function closeResetModal() {
+    document.getElementById('resetConfirmOverlay')?.classList.remove('show');
+}
+
+function executeResetData() {
+    const btn = document.getElementById('confirmResetBtn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mereset...';
+
+    fetch('/api/data-plps/reset', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Ya, Reset Semua Data';
+        closeResetModal();
+
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showDashboardErrorModal('Gagal Mereset Data', data.message || 'Terjadi kesalahan saat mereset data.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Ya, Reset Semua Data';
+        closeResetModal();
+        showDashboardErrorModal('Gagal Mereset Data', err.message || 'Terjadi kesalahan koneksi.');
+    });
+}
+
+window.resetAllData = resetAllData;
+window.closeResetModal = closeResetModal;
+window.executeResetData = executeResetData;
+

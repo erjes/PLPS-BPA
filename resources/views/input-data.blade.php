@@ -156,32 +156,39 @@
 {{-- HISTORY --}}
 <div class="card">
     <div class="history-header">
-        <h3><i class="fas fa-history" style="color:#7B1113;margin-right:8px"></i>Riwayat Upload Terakhir</h3>
+        <h3><i class="fas fa-history" style="color:#7B1113;margin-right:8px"></i>Riwayat Terakhir</h3>
     </div>
 
     @if($histories->isEmpty())
         <div class="history-empty">
             <i class="fas fa-inbox" style="font-size:32px;display:block;margin-bottom:10px"></i>
-            Belum ada riwayat upload
+            Belum ada riwayat
         </div>
     @else
     <div style="overflow-x:auto">
         <table class="history-table">
             <thead>
                 <tr>
-                    <th>Nama File</th>
+                    <th>Aktivitas / Nama File</th>
                     <th>Tanggal & Waktu</th>
-                    <th>Diunggah Oleh</th>
+                    <th>Diproses Oleh</th>
                     <th>Status</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($histories as $h)
                 <tr>
+                    @if($h->filename === 'RESET DATABASE' || $h->filename === 'RESET DATA')
+                    <td><i class="fas fa-exclamation-triangle" style="color:#dc2626;margin-right:6px"></i><strong>{{ $h->filename }}</strong></td>
+                    <td>{{ $h->created_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i') }}</td>
+                    <td>{{ $h->admin->username ?? '-' }}</td>
+                    <td><span class="status-danger"><i class="fas fa-trash-alt"></i> Berhasil Direset</span></td>
+                    @else
                     <td><i class="fas fa-file-excel" style="color:#16a34a;margin-right:6px"></i>{{ $h->filename }}</td>
                     <td>{{ $h->created_at->timezone('Asia/Jakarta')->translatedFormat('d M Y, H:i') }}</td>
                     <td>{{ $h->admin->username ?? '-' }}</td>
                     <td><span class="status-success"><i class="fas fa-check-circle"></i> Berhasil ({{ number_format($h->rows_count) }} baris)</span></td>
+                    @endif
                 </tr>
                 @endforeach
             </tbody>
@@ -189,6 +196,7 @@
     </div>
     @endif
 </div>
+
 
 <!-- Progress Overlay Modal -->
 <div class="modal-overlay" id="progressModal" style="display:none; z-index: 9999;">

@@ -33,11 +33,14 @@ Route::middleware(['auth:admin', 'super_admin'])->group(function () {
 // Guest/Admin Dashboard routes
 Route::get('/dashboard', [DataPlpsController::class, 'index']);
 Route::get('/api/filter-options', [DataPlpsController::class, 'getFilterOptions']);
+Route::get('/api/dashboard-data', [DataPlpsController::class, 'getDashboardChartData']);
+
 Route::get('/api/table-data', [DataPlpsController::class, 'tableData']);
 Route::get('/api/export-excel', [DataPlpsController::class, 'exportExcel']);
 Route::get('/api/export-pdf', [DataPlpsController::class, 'exportPdf']);
 Route::put('/api/data-plps/{id}', [DataPlpsController::class, 'updateRow'])->middleware('auth:admin');
 Route::post('/api/data-plps/bulk-delete', [DataPlpsController::class, 'bulkDelete'])->middleware('auth:admin');
+Route::post('/api/data-plps/reset', [DataPlpsController::class, 'resetData'])->middleware('auth:admin');
 
 // Data Input routes
 Route::get('/input-data', [DataPlpsController::class, 'inputData'])->middleware('auth:admin');
