@@ -1039,6 +1039,59 @@ class DataPlpsController extends Controller
     }
 
     /**
+     * Hapus seluruh riwayat export milik admin/sesi ini beserta file hasil
+     * export-nya (disk). Dipakai tombol "Hapus Semua Riwayat".
+     */
+    public function clearExportHistory(Request $request)
+    {
+        $adminId = Auth::guard('admin')->id();
+        $sessionIds = (array) $request->session()->get('export_history_ids', []);
+
+        $exports = ExportHistory::query()
+            ->visibleTo($adminId, $sessionIds)
+            ->get();
+
+        $deletedFiles = 0;
+
+        foreach ($exports as $export) {
+            if (!$export->path) {
+                continue;
+            }
+
+            $disk = Storage::disk($export->disk);
+
+            if ($disk->exists($export->path)) {
+                $disk->delete($export->path);
+                $deletedFiles++;
+            }
+        }
+
+        $deletedExports = $exports->count();
+
+        ExportHistory::query()
+            ->visibleTo($adminId, $sessionIds)
+            ->delete();
+
+        // Id yang sudah dihapus jangan tertinggal di session.
+        $request->session()->forget('export_history_ids');
+
+        $message = $deletedExports > 0
+            ? $deletedExports . ' riwayat export dihapus' . ($deletedFiles > 0 ? " beserta {$deletedFiles} file." : '.')
+            : 'Tidak ada riwayat export yang perlu dihapus.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'deleted' => $deletedExports,
+                'deleted_files' => $deletedFiles,
+            ]);
+        }
+
+        return redirect()->route('export.history')->with('success', $message);
+    }
+
+    /**
      * Filters used by the export: current dashboard filters, or the default
      * "5 semester terbaru" selection when the user has not filtered anything.
      */

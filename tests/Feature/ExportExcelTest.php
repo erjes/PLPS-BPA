@@ -86,6 +86,16 @@ class ExportExcelTest extends TestCase
         }
     }
 
+    public function test_dashboard_shows_the_export_queued_notification_modal(): void
+    {
+        $this->seedData(1);
+
+        $this->get('/dashboard')
+            ->assertOk()
+            ->assertSee('id="exportQueuedOverlay"', false)
+            ->assertSee('Buka Riwayat Export');
+    }
+
     public function test_export_excel_is_dispatched_to_the_queue_and_tracked(): void
     {
         Queue::fake();
@@ -171,6 +181,59 @@ class ExportExcelTest extends TestCase
             ->assertOk()
             ->assertSee('Riwayat Export')
             ->assertSee($history->filename)
-            ->assertSee($history->statusLabel());
+            ->assertSee($history->statusLabel())
+            ->assertSee('Hapus Semua Riwayat');
+    }
+
+    public function test_clear_export_history_removes_records_and_generated_files(): void
+    {
+        Storage::fake('public');
+        $this->seedData(1);
+
+        // Queue connection is sync in phpunit.xml, jadi file benar-benar dibuat.
+        $this->postJson('/api/export-excel')->assertStatus(202);
+
+        $history = ExportHistory::first()->refresh();
+        Storage::disk('public')->assertExists($history->path);
+
+        $this->withSession(['export_history_ids' => [$history->id]])
+            ->delete(route('export.history.clear'))
+            ->assertRedirect(route('export.history'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('export_histories', 0);
+        Storage::disk('public')->assertMissing($history->path);
+
+        $this->get(route('export.history'))
+            ->assertOk()
+            ->assertSee('Belum ada riwayat export');
+    }
+
+    public function test_clear_export_history_only_removes_records_visible_to_the_user(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->seedData(1);
+
+        $this->postJson('/api/export-excel')->assertStatus(202);
+        $mine = ExportHistory::first();
+
+        // Riwayat milik sesi/admin lain tidak boleh ikut terhapus.
+        $other = ExportHistory::create([
+            'filename' => 'other_user_export.xlsx',
+            'path' => 'exports/other_user_export.xlsx',
+            'disk' => 'public',
+            'format' => 'xlsx',
+            'status' => ExportHistory::STATUS_COMPLETED,
+            'filters' => [],
+        ]);
+
+        $this->withSession(['export_history_ids' => [$mine->id]])
+            ->delete(route('export.history.clear'))
+            ->assertRedirect(route('export.history'));
+
+        $this->assertDatabaseMissing('export_histories', ['id' => $mine->id]);
+        $this->assertDatabaseHas('export_histories', ['id' => $other->id]);
+        $this->assertNull(session('export_history_ids'));
     }
 }

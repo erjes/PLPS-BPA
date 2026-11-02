@@ -43,6 +43,7 @@ Route::get('/api/export-pdf', [DataPlpsController::class, 'exportPdf']);
 
 // Asynchronous export history (queued .xlsx files)
 Route::get('/export-history', [DataPlpsController::class, 'exportHistory'])->name('export.history');
+Route::delete('/export-history', [DataPlpsController::class, 'clearExportHistory'])->name('export.history.clear');
 Route::get('/export-history/{exportHistory}/download', [DataPlpsController::class, 'downloadExport'])->name('export.download');
 
 Route::put('/api/data-plps/{id}', [DataPlpsController::class, 'updateRow'])->middleware('auth:admin');

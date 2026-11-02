@@ -635,9 +635,6 @@ function saveEdit() {
 
 // === Export Modal ===
 function openExportModal() {
-    // Reset async export feedback from a previous attempt
-    setExportStatusMessage('', '');
-
     // Build active filter summary to show in the modal
     const summaryEl = document.getElementById('exportFilterSummary');
     if (summaryEl) {
@@ -677,14 +674,37 @@ function closeExportModal() {
     document.getElementById('exportModalOverlay').classList.remove('show');
 }
 
-function setExportStatusMessage(html, style) {
-    const el = document.getElementById('exportStatusMessage');
-    if (!el) return;
-    el.style.display = html ? 'block' : 'none';
-    el.style.cssText = html
-        ? `display:block;margin-top:18px;text-align:left;font-size:13px;line-height:1.6;border-radius:10px;padding:12px 14px;${style}`
-        : '';
-    el.innerHTML = html || '';
+/**
+ * Modal pemberitahuan setelah export Excel di-queue.
+ * Menampilkan info bahwa file akan tersedia di halaman Riwayat Export,
+ * lengkap dengan tombol navigasi ke halaman tersebut.
+ */
+function showExportQueuedModal(data) {
+    const overlay = document.getElementById('exportQueuedOverlay');
+    if (!overlay) return;
+
+    const link = document.getElementById('exportQueuedHistoryLink');
+    if (link && data && data.history_url) {
+        link.href = data.history_url;
+    }
+
+    const message = document.getElementById('exportQueuedMessage');
+    if (message && data && data.message) {
+        message.textContent = data.message;
+    }
+
+    const filename = document.getElementById('exportQueuedFilename');
+    if (filename) {
+        const name = (data && data.export && data.export.filename) ? data.export.filename : '';
+        filename.textContent = name ? 'File: ' + name : '';
+        filename.style.display = name ? '' : 'none';
+    }
+
+    overlay.classList.add('show');
+}
+
+function closeExportQueuedModal() {
+    document.getElementById('exportQueuedOverlay')?.classList.remove('show');
 }
 
 function doExport(type) {
@@ -707,7 +727,6 @@ function doExport(type) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:24px;margin-bottom:8px;display:block"></i> Memproses...';
     }
-    setExportStatusMessage('', '');
 
     fetch('/api/export-excel', {
         method: 'POST',
@@ -727,23 +746,18 @@ function doExport(type) {
             btn.disabled = false;
             btn.innerHTML = originalBtnHtml;
         }
-        showToast(data.message || 'Proses export sedang berjalan di latar belakang.');
 
-        if (data.history_url) {
-            setExportStatusMessage(
-                `<i class="fas fa-circle-info" style="margin-right:6px"></i>${data.message}
-                 <div style="margin-top:8px">
-                    <a href="${data.history_url}" style="color:#7B1113;font-weight:700;text-decoration:underline">Buka Riwayat Export</a>
-                 </div>`,
-                'background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d'
-            );
-        }
+        // Tutup modal export, lalu tampilkan pemberitahuan (tanpa toast).
+        closeExportModal();
+        showExportQueuedModal(data);
     })
     .catch(err => {
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = originalBtnHtml;
         }
+
+        closeExportModal();
         showDashboardErrorModal('Export Gagal', err.message || 'Terjadi kesalahan saat memulai proses export.');
     });
 }
@@ -768,6 +782,8 @@ window.saveEdit = saveEdit;
 window.openExportModal = openExportModal;
 window.closeExportModal = closeExportModal;
 window.doExport = doExport;
+window.closeExportQueuedModal = closeExportQueuedModal;
+window.showExportQueuedModal = showExportQueuedModal;
 
 // Export AJAX dashboard refresh functions so they can be called from
 // inline <script> blocks in Blade (ES module scope boundary fix)

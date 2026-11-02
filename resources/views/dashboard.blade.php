@@ -895,14 +895,45 @@
                             <i class="fas fa-file-pdf" style="font-size:24px;margin-bottom:8px;display:block"></i> PDF
                         </button>
                     </div>
-                    {{-- Async export feedback (filled by dashboard.js) --}}
-                    <div id="exportStatusMessage" style="display:none;margin-top:18px;text-align:left;font-size:13px;line-height:1.6;border-radius:10px;padding:12px 14px;"></div>
                     <a href="{{ route('export.history') }}"
                         style="display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:13px;font-weight:600;color:#7B1113;text-decoration:none;">
                         <i class="fas fa-history"></i> Lihat Riwayat Export
                     </a>
                 </div>
 
+            </div>
+        </div>
+
+        {{-- EXPORT QUEUED NOTIFICATION MODAL --}}
+        <div class="edit-modal-overlay" id="exportQueuedOverlay" onmousedown="if(event.target===this)this.dataset.close='1';"
+            onmouseup="if(this.dataset.close==='1' && event.target===this){closeExportQueuedModal();} this.dataset.close='0';">
+            <div class="edit-modal" style="max-width:440px;text-align:center">
+                <div class="edit-modal-header" style="border-bottom:none;padding-bottom:0">
+                    <h3 style="color:#0f766e"><i class="fas fa-circle-check" style="color:#16a34a"></i> Export Sedang Diproses
+                    </h3>
+                    <button class="edit-modal-close" onclick="closeExportQueuedModal()">&times;</button>
+                </div>
+                <div class="edit-modal-body" style="padding:20px 24px">
+                    <div
+                        style="width:60px;height:60px;border-radius:50%;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <p style="font-size:15px;color:#1e293b;font-weight:600;margin-bottom:8px">Hasil export akan tersedia di
+                        Riwayat Export</p>
+                    <p style="font-size:13px;color:#64748b;line-height:1.5" id="exportQueuedMessage">
+                        File Excel sedang dibuat di latar belakang. Silakan buka halaman Riwayat Export beberapa saat lagi
+                        untuk mengunduh hasilnya.
+                    </p>
+                    <p style="font-size:12px;color:#94a3b8;margin-top:10px" id="exportQueuedFilename"></p>
+                </div>
+                <div class="edit-modal-footer"
+                    style="justify-content:center;gap:12px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 16px 16px">
+                    <button class="btn btn-outline" onclick="closeExportQueuedModal()" style="padding:10px 20px">Tutup</button>
+                    <a class="btn btn-primary" id="exportQueuedHistoryLink" href="{{ route('export.history') }}"
+                        style="padding:10px 24px;text-decoration:none">
+                        <i class="fas fa-history"></i> Buka Riwayat Export
+                    </a>
+                </div>
             </div>
         </div>
 

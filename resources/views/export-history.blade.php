@@ -176,21 +176,95 @@
         @endif
     </div>
 
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <a href="{{ url('/dashboard') }}" class="btn btn-outline" style="text-decoration:none;">
             <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
         </a>
         <a href="{{ route('export.history') }}" class="btn btn-primary" style="text-decoration:none;">
             <i class="fas fa-rotate"></i> Muat Ulang
         </a>
+        @if(!$exports->isEmpty())
+            <button type="button" class="btn btn-red" onclick="openClearHistoryModal()"
+                style="margin-left:auto;background:#dc2626">
+                <i class="fas fa-trash-alt"></i> Hapus Semua Riwayat
+            </button>
+        @endif
     </div>
+
+    {{-- CLEAR HISTORY CONFIRMATION MODAL --}}
+    <div class="edit-modal-overlay" id="clearHistoryOverlay" onmousedown="if(event.target===this)this.dataset.close='1';"
+        onmouseup="if(this.dataset.close==='1' && event.target===this){closeClearHistoryModal();} this.dataset.close='0';">
+        <div class="edit-modal" style="max-width:440px;text-align:center">
+            <div class="edit-modal-header" style="border-bottom:none;padding-bottom:0">
+                <h3 style="color:#b91c1c"><i class="fas fa-exclamation-triangle" style="color:#dc2626"></i> Konfirmasi Hapus
+                    Riwayat</h3>
+                <button class="edit-modal-close" onclick="closeClearHistoryModal()">&times;</button>
+            </div>
+            <div class="edit-modal-body" style="padding:20px 24px">
+                <div
+                    style="width:60px;height:60px;border-radius:50%;background:#fef2f2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <p style="font-size:15px;color:#1e293b;font-weight:600;margin-bottom:8px">Yakin ingin menghapus seluruh
+                    riwayat export?</p>
+                <p style="font-size:13px;color:#64748b;line-height:1.5">
+                    Sebanyak <strong>{{ number_format($exports->total(), 0, ',', '.') }}</strong> riwayat export beserta
+                    file Excel yang sudah dibuat akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                </p>
+            </div>
+            <div class="edit-modal-footer"
+                style="justify-content:center;gap:12px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 16px 16px">
+                <button class="btn btn-outline" onclick="closeClearHistoryModal()" style="padding:10px 20px">Batal</button>
+                <button class="btn btn-red" id="confirmClearHistoryBtn" onclick="submitClearHistory()"
+                    style="padding:10px 24px;background:#dc2626">
+                    <i class="fas fa-trash-alt"></i> Ya, Hapus Semua
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Form di bawah ini hanya dikirim setelah user menekan "Ya, Hapus Semua" --}}
+    <form id="clearExportHistoryForm" method="POST" action="{{ route('export.history.clear') }}" style="display:none">
+        @csrf
+        @method('DELETE')
+    </form>
 
     @if($hasPendingExport)
         <script>
-            // Keep the progress bar / download button up to date while the
-            // queue worker is still writing the export.
-            setTimeout(() => window.location.reload(), 5000);
+            // Segarkan halaman selama masih ada export yang diproses, tetapi
+            // tahan dulu kalau modal konfirmasi hapus sedang terbuka.
+            (function pollExportStatus() {
+                setTimeout(() => {
+                    const overlay = document.getElementById('clearHistoryOverlay');
+                    if (overlay && overlay.classList.contains('show')) {
+                        pollExportStatus();
+                        return;
+                    }
+                    window.location.reload();
+                }, 5000);
+            })();
         </script>
     @endif
+
+    <script>
+        function openClearHistoryModal() {
+            document.getElementById('clearHistoryOverlay').classList.add('show');
+        }
+
+        function closeClearHistoryModal() {
+            document.getElementById('clearHistoryOverlay').classList.remove('show');
+        }
+
+        function submitClearHistory() {
+            const btn = document.getElementById('confirmClearHistoryBtn');
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
+            }
+
+            document.getElementById('clearExportHistoryForm').submit();
+        }
+    </script>
 
 @endsection
