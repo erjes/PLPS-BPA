@@ -879,12 +879,14 @@
                     <button class="edit-modal-close" onclick="closeExportModal()">&times;</button>
                 </div>
                 <div class="edit-modal-body" style="padding:24px 28px">
-                    <p style="margin-bottom:12px;font-size:14px;color:#475569">Pilih format file untuk mengunduh laporan sesuai
-                        filter yang sedang aktif.</p>
+                    <p style="margin-bottom:12px;font-size:14px;color:#475569">
+                        Pilih format file sesuai filter yang sedang aktif. File <strong>Excel</strong> dibuat di
+                        latar belakang (queue) sehingga tetap aman untuk data besar.
+                    </p>
                     {{-- Active filter summary shown here by JS --}}
                     <div id="exportFilterSummary" style="margin-bottom:20px;text-align:left"></div>
                     <div style="display:flex;gap:15px;justify-content:center">
-                        <button type="button" class="btn btn-outline" onclick="doExport('excel')"
+                        <button type="button" class="btn btn-outline" id="exportExcelBtn" onclick="doExport('excel')"
                             style="flex:1;padding:15px;color:#0f766e;border-color:#0f766e">
                             <i class="fas fa-file-excel" style="font-size:24px;margin-bottom:8px;display:block"></i> Excel
                         </button>
@@ -893,7 +895,14 @@
                             <i class="fas fa-file-pdf" style="font-size:24px;margin-bottom:8px;display:block"></i> PDF
                         </button>
                     </div>
+                    {{-- Async export feedback (filled by dashboard.js) --}}
+                    <div id="exportStatusMessage" style="display:none;margin-top:18px;text-align:left;font-size:13px;line-height:1.6;border-radius:10px;padding:12px 14px;"></div>
+                    <a href="{{ route('export.history') }}"
+                        style="display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:13px;font-weight:600;color:#7B1113;text-decoration:none;">
+                        <i class="fas fa-history"></i> Lihat Riwayat Export
+                    </a>
                 </div>
+
             </div>
         </div>
 

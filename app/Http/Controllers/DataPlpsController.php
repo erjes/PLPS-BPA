@@ -10,8 +10,13 @@ use App\Models\Fakultas;
 use App\Models\Prodi;
 use App\Models\Program;
 use App\Models\SubProgram;
+use App\Models\ExportHistory;
+use App\Jobs\GenerateMahasiswaMbkmExport;
+use App\Support\DataPlpsFilter;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\DataPlpsImport;
 
@@ -338,16 +343,10 @@ class DataPlpsController extends Controller
         }
 
         $query = DataPlps::with(['program', 'subProgram', 'mahasiswa.prodi.fakultas', 'kegiatan', 'mitra']);
-        $this->applyEloquentFilters($query, $request);
 
-        if ($request->search_nama) {
-            $query->whereHas('mahasiswa', function ($q) use ($request) {
-                $q->where('nama', 'LIKE', '%' . $request->search_nama . '%');
-            });
-        }
-        if ($request->search_nim) {
-            $query->where('nim', 'LIKE', '%' . $request->search_nim . '%');
-        }
+        // Dropdown filters + search_nama/search_nim, all handled by the shared
+        // filter so the table and the Excel export always match.
+        $this->applyEloquentFilters($query, $request);
 
         $paginated = $query->orderBy('id', 'desc')->paginate(100);
 
@@ -389,48 +388,18 @@ class DataPlpsController extends Controller
      */
     private function expandIds($input)
     {
-        $values = (array) $input;
-        $expanded = [];
-        foreach ($values as $v) {
-            foreach (explode(',', $v) as $id) {
-                $id = trim($id);
-                if ($id !== '') $expanded[] = $id;
-            }
-        }
-        return array_unique($expanded);
+        return DataPlpsFilter::expandIds($input);
     }
 
     /**
-     * Apply filters to Eloquent DataPlps query
+     * Apply filters to Eloquent DataPlps query.
+     *
+     * Delegated to App\Support\DataPlpsFilter so the dashboard, the data
+     * table, the PDF export and the queued Excel export share one implementation.
      */
     private function applyEloquentFilters($query, Request $request)
     {
-        if ($request->has('program_id') && !empty(array_filter((array)$request->program_id))) {
-            $query->whereIn('program_id', $this->expandIds($request->program_id));
-        }
-        if ($request->has('sub_program_id') && !empty(array_filter((array)$request->sub_program_id))) {
-            $query->whereIn('sub_program_id', $this->expandIds($request->sub_program_id));
-        }
-        if ($request->has('mitra_id') && !empty(array_filter((array)$request->mitra_id))) {
-            $query->whereIn('mitra_id', $this->expandIds($request->mitra_id));
-        }
-        if ($request->has('penyelenggara') && !empty(array_filter((array)$request->penyelenggara))) {
-            $query->whereIn('penyelenggara', (array)$request->penyelenggara);
-        }
-        if ($request->has('fakultas_id') && !empty(array_filter((array)$request->fakultas_id))) {
-            $ids = $this->expandIds($request->fakultas_id);
-            $query->whereHas('mahasiswa.prodi', fn($q) => $q->whereIn('fakultas_id', $ids));
-        }
-        if ($request->has('prodi_id') && !empty(array_filter((array)$request->prodi_id))) {
-            $ids = $this->expandIds($request->prodi_id);
-            $query->whereHas('mahasiswa', fn($q) => $q->whereIn('prodi_id', $ids));
-        }
-        if ($request->has('semester_ta') && !empty(array_filter((array)$request->semester_ta))) {
-            $query->whereIn('semester_ta', (array)$request->semester_ta);
-        }
-        if ($request->has('tahun_ajaran') && !empty(array_filter((array)$request->tahun_ajaran))) {
-            $query->whereIn('tahun_ajaran', (array)$request->tahun_ajaran);
-        }
+        DataPlpsFilter::apply($query, $request->all());
     }
 
     /**
@@ -984,21 +953,111 @@ class DataPlpsController extends Controller
 
     /**
      * Export data to Excel based on filters.
+     *
+     * The .xlsx file is generated in the background (queue) so a big dataset
+     * never blocks the HTTP request and never hits the request timeout /
+     * memory limit again. The user is redirected (or gets JSON) immediately
+     * and can download the finished file from "Riwayat Export".
      */
     public function exportExcel(Request $request)
     {
-        // Apply default filter if no filters are selected (first load behavior)
-        if (!$request->has('program_id') && !$request->has('sub_program_id') && !$request->has('fakultas_id') && !$request->has('prodi_id') && !$request->has('penyelenggara') && !$request->has('mitra_id') && !$request->has('semester_ta') && !$request->has('tahun_ajaran')) {
-            $defaultSemesterTa = DataPlps::select('semester_ta')->distinct()->orderBy('semester_ta', 'desc')->limit(5)->pluck('semester_ta')->toArray();
-            $request->merge(['semester_ta' => $defaultSemesterTa]);
+        $filters = $this->resolveExportFilters($request);
+        $disk = config('export.disk', 'public');
+
+        $filename = 'data_mahasiswa_mbkm_' . now()->format('Ymd_His') . '.xlsx';
+        $path = 'exports/' . $filename;
+
+        // 1. Track the export so the UI can show the progress + download link.
+        $history = ExportHistory::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'filename' => $filename,
+            'path' => $path,
+            'disk' => $disk,
+            'format' => 'xlsx',
+            'status' => ExportHistory::STATUS_QUEUED,
+            'total_rows' => DataPlpsFilter::apply(DataPlps::query(), $filters)->count(),
+            'filters' => $filters,
+        ]);
+
+        // Exports triggered from the current browser session (also for guests).
+        $request->session()->push('export_history_ids', $history->id);
+
+        // 2. Queue job: file dibuat di background, request langsung selesai.
+        GenerateMahasiswaMbkmExport::dispatch($history->id, $filters);
+
+        $message = 'Proses export sedang berjalan di latar belakang. File akan siap dalam beberapa saat dan dapat diunduh melalui halaman Riwayat Export.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'export' => [
+                    'id' => $history->id,
+                    'filename' => $history->filename,
+                    'status' => $history->status,
+                ],
+                'history_url' => route('export.history'),
+            ], 202);
         }
 
-        $query = DataPlps::query();
-        $this->applyEloquentFilters($query, $request);
-        $query->with(['program', 'subProgram', 'mahasiswa.prodi.fakultas', 'kegiatan', 'mitra']);
-        
-        return Excel::download(new \App\Exports\DataPlpsExport($query), 'data_mahasiswa_mbkm.xlsx');
+        return back()->with('success', $message);
     }
+
+    /**
+     * List of exports (status + download links) for the current admin/session.
+     */
+    public function exportHistory(Request $request)
+    {
+        $exports = ExportHistory::query()
+            ->visibleTo(Auth::guard('admin')->id(), (array) $request->session()->get('export_history_ids', []))
+            ->orderByDesc('id')
+            ->paginate(15);
+
+        return view('export-history', [
+            'exports' => $exports,
+            'hasPendingExport' => $exports->contains(fn (ExportHistory $export) => $export->isPending()),
+        ]);
+    }
+
+    /**
+     * Download a finished export.
+     */
+    public function downloadExport(Request $request, ExportHistory $exportHistory)
+    {
+        $adminId = Auth::guard('admin')->id();
+        $sessionIds = (array) $request->session()->get('export_history_ids', []);
+
+        $isOwner = $adminId && (int) $exportHistory->admin_id === (int) $adminId;
+        abort_unless($isOwner || in_array($exportHistory->id, $sessionIds), 403, 'Anda tidak berhak mengunduh file export ini.');
+
+        abort_unless($exportHistory->isCompleted(), 409, 'File export belum selesai diproses.');
+
+        $disk = Storage::disk($exportHistory->disk);
+        abort_unless($disk->exists($exportHistory->path), 404, 'File export tidak ditemukan, silakan jalankan export ulang.');
+
+        return $disk->download($exportHistory->path, $exportHistory->filename);
+    }
+
+    /**
+     * Filters used by the export: current dashboard filters, or the default
+     * "5 semester terbaru" selection when the user has not filtered anything.
+     */
+    private function resolveExportFilters(Request $request): array
+    {
+        $filters = DataPlpsFilter::only($request->all());
+
+        if (!DataPlpsFilter::hasAny($filters)) {
+            $filters['semester_ta'] = DataPlps::select('semester_ta')
+                ->distinct()
+                ->orderBy('semester_ta', 'desc')
+                ->limit(5)
+                ->pluck('semester_ta')
+                ->toArray();
+        }
+
+        return $filters;
+    }
+
 
     /**
      * Export data to PDF (HTML view printable) based on filters.

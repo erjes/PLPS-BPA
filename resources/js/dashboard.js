@@ -635,6 +635,9 @@ function saveEdit() {
 
 // === Export Modal ===
 function openExportModal() {
+    // Reset async export feedback from a previous attempt
+    setExportStatusMessage('', '');
+
     // Build active filter summary to show in the modal
     const summaryEl = document.getElementById('exportFilterSummary');
     if (summaryEl) {
@@ -674,18 +677,77 @@ function closeExportModal() {
     document.getElementById('exportModalOverlay').classList.remove('show');
 }
 
+function setExportStatusMessage(html, style) {
+    const el = document.getElementById('exportStatusMessage');
+    if (!el) return;
+    el.style.display = html ? 'block' : 'none';
+    el.style.cssText = html
+        ? `display:block;margin-top:18px;text-align:left;font-size:13px;line-height:1.6;border-radius:10px;padding:12px 14px;${style}`
+        : '';
+    el.innerHTML = html || '';
+}
+
 function doExport(type) {
     // Use current checkbox state (same as AJAX filters), NOT window.location.search
     // This ensures export respects filters applied via AJAX without page reload
     const params = getActiveFilterParams();
-    const qs = params.toString() ? '?' + params.toString() : '';
-    if (type === 'excel') {
-        window.location.href = '/api/export-excel' + qs;
-    } else {
+
+    if (type === 'pdf') {
+        const qs = params.toString() ? '?' + params.toString() : '';
         window.open('/api/export-pdf' + qs, '_blank');
+        closeExportModal();
+        return;
     }
-    closeExportModal();
+
+    // === Excel: asynchronous export through the queue ===
+    const btn = document.getElementById('exportExcelBtn');
+    const originalBtnHtml = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:24px;margin-bottom:8px;display:block"></i> Memproses...';
+    }
+    setExportStatusMessage('', '');
+
+    fetch('/api/export-excel', {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: params
+    })
+    .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw data;
+        return data;
+    })
+    .then(data => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+        showToast(data.message || 'Proses export sedang berjalan di latar belakang.');
+
+        if (data.history_url) {
+            setExportStatusMessage(
+                `<i class="fas fa-circle-info" style="margin-right:6px"></i>${data.message}
+                 <div style="margin-top:8px">
+                    <a href="${data.history_url}" style="color:#7B1113;font-weight:700;text-decoration:underline">Buka Riwayat Export</a>
+                 </div>`,
+                'background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d'
+            );
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+        showDashboardErrorModal('Export Gagal', err.message || 'Terjadi kesalahan saat memulai proses export.');
+    });
 }
+
 
 // Attach globally since they are used via HTML onclick
 

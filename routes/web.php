@@ -36,8 +36,15 @@ Route::get('/api/filter-options', [DataPlpsController::class, 'getFilterOptions'
 Route::get('/api/dashboard-data', [DataPlpsController::class, 'getDashboardChartData']);
 
 Route::get('/api/table-data', [DataPlpsController::class, 'tableData']);
-Route::get('/api/export-excel', [DataPlpsController::class, 'exportExcel']);
+Route::match(['get', 'post'], '/api/export-excel', [DataPlpsController::class, 'exportExcel'])
+    ->middleware('throttle:10,1')
+    ->name('export.excel');
 Route::get('/api/export-pdf', [DataPlpsController::class, 'exportPdf']);
+
+// Asynchronous export history (queued .xlsx files)
+Route::get('/export-history', [DataPlpsController::class, 'exportHistory'])->name('export.history');
+Route::get('/export-history/{exportHistory}/download', [DataPlpsController::class, 'downloadExport'])->name('export.download');
+
 Route::put('/api/data-plps/{id}', [DataPlpsController::class, 'updateRow'])->middleware('auth:admin');
 Route::post('/api/data-plps/bulk-delete', [DataPlpsController::class, 'bulkDelete'])->middleware('auth:admin');
 Route::post('/api/data-plps/reset', [DataPlpsController::class, 'resetData'])->middleware('auth:admin');

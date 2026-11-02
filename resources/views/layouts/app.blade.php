@@ -24,6 +24,9 @@
                 <a href="/dashboard" class="{{ request()->is('dashboard') ? 'active' : '' }}">
                     <i class="fas fa-th-large"></i> Dashboard
                 </a>
+                <a href="{{ url('/export-history') }}" class="{{ request()->is('export-history*') ? 'active' : '' }}">
+                    <i class="fas fa-history"></i> Riwayat Export
+                </a>
                 @auth('admin')
                 <a href="/input-data" class="{{ request()->is('input-data*') ? 'active' : '' }}">
                     <i class="fas fa-file-upload"></i> Input Data
@@ -50,6 +53,9 @@
     <div class="mobile-menu" id="mobileMenu">
         <a href="/dashboard" class="{{ request()->is('dashboard') ? 'active' : '' }}">
             <i class="fas fa-th-large"></i> Dashboard
+        </a>
+        <a href="{{ url('/export-history') }}" class="{{ request()->is('export-history*') ? 'active' : '' }}">
+            <i class="fas fa-history"></i> Riwayat Export
         </a>
         @auth('admin')
         <a href="/input-data" class="{{ request()->is('input-data*') ? 'active' : '' }}">
